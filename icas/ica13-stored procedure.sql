@@ -3,7 +3,8 @@
 --q1
 if exists ( select * from sysobjects where name = 'ica13_01' )          -- put on the cheat sheet just in case 
 drop procedure ica13_01
-go
+go
+
 create procedure ica13_01 
 as 
    select
