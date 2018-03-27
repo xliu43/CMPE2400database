@@ -1,4 +1,4 @@
-﻿-- ica15
+﻿-- ica15 xiao liu 
 -- This ICA is comprised of 2 parts, but should be tackled as described by your instructor.
 -- To ensure end-to-end running, you will have to complete the ica in pairs where possible :
 --  q1A + q2A, then q1B + q2B
@@ -65,6 +65,21 @@ declare @identity_Classs int
 	 from 
 	 Courses 
 	where course_desc like '%SQL%'
+	select 
+	*
+	from 
+	Classes as c 
+	where DATEDIFF(day,'2016-08-01',c.start_date)>0
+
+    select 
+	s.last_name,
+	s.first_name
+	from 
+	Classes as c inner join class_to_student as cs 
+	on c.class_id=cs.class_id 
+	inner join Students as s 
+	on s.student_id=cs.student_id
+	where c.class_desc like '%Beware%'
 
 
 go
@@ -83,18 +98,72 @@ go
 
 -- D - Delete all students that have been assigned to your new class, do this without a 
 --     variable, rather perform a join with proper filtering for this delete
+       delete class_to_student
+	   from 
+	    Classes as c inner join class_to_student as cs 
+			on c.class_id=cs.class_id 
+			inner join Students as s 
+			on s.student_id=cs.student_id
+	   where c.class_desc like '%Beware%'
        
 
 -- C - declare, query and set class id to your new class based on above filter.
 --     declare, query and save the linked course and instructor ( use in B and A )
 --     Delete the new class
+      declare @classID int 
+	  declare @instructorID as int 
+	  declare @courseID as int 
+	   select 
+	   @classID=c.class_id,
+	   @instructorID=i.instructor_id,
+	   @courseID=c.course_id
+	   from 
+	   Classes as c inner join Instructors as i
+	   on i.instructor_id=c.instructor_id
+	   inner join Courses as course 
+	   on c.course_id=course.course_id
+	   where 
+	   c.class_desc like '%Beware%'
+	   
+
+	   
+	   delete Classes
+	   where class_id=@classID
+	 
+	   
 
 -- B - Delete the new course as saved in C
+       delete Courses
+	   where course_id=@courseID
 
 -- A - Delete the new instructor as saved in C
-
+       delete Instructors
+	   where instructor_id=@instructorID
 
 -- E - Repeat q1 part E to verify the removal of all the data.
+      select 
+	*
+	from 
+	 Instructors 
+	select 
+	*
+	 from 
+	 Courses 
+	where course_desc like '%SQL%'
+	select 
+	*
+	from 
+	Classes as c 
+	where DATEDIFF(day,'2016-08-01',c.start_date)>0
 
+    select 
+	s.last_name,
+	s.first_name
+	from 
+	Classes as c inner join class_to_student as cs 
+	on c.class_id=cs.class_id 
+	inner join Students as s 
+	on s.student_id=cs.student_id
+	where c.class_desc like '%Beware%'
 
 go
