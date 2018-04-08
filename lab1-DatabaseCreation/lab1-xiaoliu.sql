@@ -56,7 +56,7 @@ create table Class
     ClassID varchar(6) not null
 	  constraint pk_Class_ClassID primary key
 	,
-	[ClassDescription] nvarchar(50) 
+	[ClassDescription] varchar(100) 
 )
 go 
 
@@ -106,8 +106,8 @@ create table [Sessions]
    SessionDate datetime not null
      constraint ck_Sessions_SessionDate check(datediff(day,'2017-09-01',(SessionDate))>0)
    ,
-   Laps int
-    constraint ck_laps check(laps>0)
+   Laps int default 0 
+    constraint ck_laps check(laps>=0)
 )
 go
 
@@ -115,5 +115,479 @@ alter table Sessions
  add 
   constraint pk_Sessions_RiderID_BikeID_SessionDate primary key (RiderID,BikeID,SessionDate)
 
+
+------------------Stored Procedure--------------------------------
+
+if exists
+(
+	select *
+	from sysobjects
+	where name = 'PopulateClass'
+)
+drop procedure PopulateClass
+go
+/*
+('moto_3', 'Default Chassis, custom 125cc engine'),
+('moto_2', 'Common 600cc engine and electronics, Custom Chassis'),
+('motogp', '1000cc Full Factory Spec, common electronics')
+*/
+
+
+create procedure PopulateClass
+as
+ insert into Class(ClassID,ClassDescription)
+ values 
+  ('moto_3', 'Default Chassis, custom 125cc engine'),
+  ('moto_2', 'Common 600cc engine and electronics, Custom Chassis'),
+  ('motogp', '1000cc Full Factory Spec, common electronics')
+go
+
+exec PopulateClass 
+go 
+ 
+--------------------------------Popluate Bikes---------------------------
+if exists
+(
+	select *
+	from sysobjects
+	where name = 'PopulateBikes'
+)
+drop procedure PopulateBikes
+go
+
+
+
+create procedure PopulateBikes
+as
+ select 
+  BikeID as 'BikeID'
+into #BikesTemp
+from Bikes 
+    declare @initalCompany as char(1)
+	declare @loopForHYS int = 0
+	declare @loopForBike int = 0
+	declare @bikeID varchar(6)
+
+	while(@loopForHYS < 3)
+		begin
+			if(@loopForHYS = 0)
+				begin
+					set @initalCompany = 'H' 
+				end
+			if(@loopForHYS = 1)
+				begin
+					set @initalCompany = 'Y' 
+				end
+			if(@loopForHYS = 2)
+				begin
+					set @initalCompany = 'S' 
+				end
+	
+					while(@loopForBike < 20)
+						begin
+			           
+						set @bikeID = FORMAT(@loopForBike,'000') + @initalCompany + '-' + 'A'
+						insert #BikesTemp(BikeID)
+						values (@bikeID)
+			
+						set @bikeID = FORMAT(@loopForBike,'000') + @initalCompany + '-' + 'P'
+						insert #BikesTemp(BikeID)
+						values (@bikeID)
+
+						set @loopForBike += 1
+			
+						end
+						
+		set @loopForHYS+=1
+		set @loopForBike=0
+		
+		end      
+
+	
+
+		insert Bikes(BikeID)
+		 (
+		   	    select 
+				*
+				from 
+				#BikesTemp
+		 )
+
+ 
+go 
+
+execute PopulateBikes
+go 
+
+
+----------------------------------------AddRider-------------------------------------
+if exists
+(
+	select *
+	from sysobjects
+	where name = 'AddRider'
+)
+drop procedure AddRider
+go
+
+create procedure AddRider
+@riderName as nvarchar(50),
+@classID as nvarchar(50),
+@resultMsg as nvarchar(50) output,
+@newRiderID as int output 
+as
+	if(LEN(@riderName) <=4)
+		begin
+			set @resultMsg = 'Rider must have a name more than 4 characters!'
+			return -1
+		end
+
+	select *
+	into #tempClasses
+	from  
+	Class 
+	where Class.ClassID = @classID 
+	
+	if(@@ROWCOUNT = 0)
+	begin
+		set @resultMsg = 'Supplied class id does not exist or Null'
+		return -1
+	end
+
+	select *
+	into #tempRiders
+	from Riders
+	where Riders.Name = @riderName and 
+	Riders.ClassID=@classID
+	
+	if(@@ROWCOUNT = 0)
+		begin
+			insert Riders([Name],ClassID)
+			values	(@riderName,@classID)
+			set @newRiderID=@@IDENTITY
+			set @resultMsg = 'A new Rider has been added with RiderID'+convert(varchar(100),@newRiderID)
+			return 0
+		end
+	else
+		begin
+			set @resultMsg = 'Record exsits'
+			return -1
+		end
+go
+
+----------------AddRiderTest--------------------------------
+----------class is !Exsits------
+declare @resultMsg as varchar(50)
+declare @newRiderID as int 
+declare @name as varchar(50)='name is good'
+declare @classID as varchar(10)='not exsit'
+exec AddRider @name,@classID,@resultMsg output,@newRiderID output  
+
+select 
+@resultMsg as 'ExcutMessage',
+@newRiderID as 'NewRiderID'
+go 
+
+----------good one------
+declare @resultMsg as varchar(50)
+declare @newRiderID as int 
+declare @name as varchar(50)='Xiao Liu'
+declare @classID as varchar(10)='moto_2'
+exec AddRider @name,@classID,@resultMsg output,@newRiderID output  
+
+select 
+@resultMsg as 'ExcutMessage',
+@newRiderID as 'NewRiderID'
+go 
+
+------dupliacated one----
+declare @resultMsg as varchar(50)
+declare @newRiderID as int 
+declare @name as varchar(50)='Xiao Liu'
+declare @classID as varchar(10)='moto_2'
+exec AddRider @name,@classID,@resultMsg output,@newRiderID output  
+
+select 
+@resultMsg as 'ExcutMessage',
+@newRiderID as 'NewRiderID'
+go 
+
+----for future use------
+declare @resultMsg as varchar(50)
+declare @newRiderID as int 
+declare @name as varchar(50)='Xiao Liu2'
+declare @classID as varchar(10)='moto_2'
+exec AddRider @name,@classID,@resultMsg output,@newRiderID output  
+
+select 
+@resultMsg as 'ExcutMessage',
+@newRiderID as 'NewRiderID'
+go 
+
+declare @resultMsg as varchar(50)
+declare @newRiderID as int 
+declare @name as varchar(50)='Xiao Liu3'
+declare @classID as varchar(10)='moto_3'
+exec AddRider @name,@classID,@resultMsg output,@newRiderID output  
+
+select 
+@resultMsg as 'ExcutMessage',
+@newRiderID as 'NewRiderID'
+go 
+
+
+---------------------------------------Remove Rider-----------------------------------------------
+if exists
+(
+	select *
+	from sysobjects
+	where name = 'RemoveRider'
+)
+drop procedure RemoveRider
+go
+
+create procedure RemoveRider
+@riderID as int ,
+@boolForce as bit =0,
+@resultMsg as varchar(50) output
+as
+
+select 
+RiderID as 'RidersID'
+into #RidersTemp
+from 
+Riders
+where
+RiderID=@riderID
+
+if(@@ROWCOUNT=0)
+ begin
+    set @resultMsg='RidersID not exsits or null'
+	return -1
+ end
+ ----check the rider has sessions 
+ 	If exists 
+	(select * from Sessions where Sessions.RiderID = @riderID)
+		begin
+			if(@boolForce = 1)
+			begin
+				
+				delete Sessions
+				where Sessions.RiderID = @riderID
+
+				delete Riders
+				where Riders.RiderID = @riderID
+
+				set @resultMsg = 'Rider with'+convert(varchar,@riderID)+'has been removed along with registed sessions'
+
+				return 0
+			end
+
+			if(@boolForce = 0)
+			begin
+				set @resultMsg = 'Rider : ' + CONVERT(varchar(max),@riderID)+ ' currently in session'
+				return -1
+			end	
+		end
+	 else -- rider does not registed in any sessions
+	  begin 
+	    	delete Riders
+			where Riders.RiderID = @riderID
+			set @resultMsg ='Rider with'+convert(varchar,@riderID)+'has been removed Not registed in any sessions'
+	  end 
+	  
+go
+
+---------------------testing remove riders---------
+
+declare @resultMsg as varchar(50)
+declare @riderID as int =11
+declare @force as bit=0
+exec RemoveRider @riderID,@force,@resultMsg output
+
+select 
+@resultMsg as 'ExcutMessage'
+go 
+
+
+---------------------------------Add Sessions--------------------------------------
+if exists
+(
+	select *
+	from sysobjects
+	where name = 'AddSession'
+)
+drop procedure AddSession
+go
+
+create procedure AddSession
+@riderId as int,
+@bikeId as varchar(6),
+@sessionDate as datetime,
+@resultMsg as nvarchar(50) output
+as
+	
+	if(@sessionDate is null or datediff(day,'2017-09-01',@sessionDate)<0)
+		begin
+			set @resultMsg = 'Session date is null or Invalid(Must after Sep 1st 2017)'
+			return -1
+		end
+	if not exists (select * from Riders where Riders.RiderID = @riderId)
+		begin
+			set @resultMsg = 'RiderId :  does not exist or Null'
+			return -1
+		end
+	if not exists (select * from Bikes where Bikes.BikeID = @bikeId)
+		begin
+			set @resultMsg = 'Bike Id : ' + @bikeId + ' does not exist or Null'
+			return -1
+		end
+	if exists (select * from Sessions where Sessions.BikeID = @bikeId)
+		begin
+			set @resultMsg = 'Bike Id : ' + @bikeId + ' already assigned.'
+			return -1			
+		end
+	
+			insert into Sessions (RiderID,BikeID,SessionDate)
+			values (@riderId, @bikeId,@sessionDate)
+			set @resultMsg = 'One Session Created successfully'
+			return 0
+		
+
+go
+
+
+-------------------Test ADD Session---------------------
+-------add good one ---
+declare @resultMsg as varchar(50)
+declare @riderID as int =10
+declare @sessionDate datetime ='2018-04-07'
+declare @bikeId varchar(10)='018H-A'
+
+execute AddSession @riderID,@bikeId,@sessionDate,@resultMsg output 
+
+select 
+@resultMsg as 'ExcutMessage'
+select 
+*
+from 
+Sessions
+
+go 
+
+------Bike already Assigned---- 
+declare @resultMsg as varchar(50)
+declare @riderID as int =12
+declare @sessionDate datetime ='2018-04-08'
+declare @bikeId varchar(10)='018H-A'
+
+execute AddSession @riderID,@bikeId,@sessionDate,@resultMsg output 
+
+select 
+@resultMsg as 'ExcutMessage'
+select 
+*
+from 
+Sessions
+
+go 
+
+
+------------------------Update Session------------------------------
+if exists
+(
+	select *
+	from sysobjects
+	where name = 'UpdateSession'
+)
+drop procedure UpdateSession
+go
+
+create procedure UpdateSession
+@riderId as int,
+@bikeId as varchar(6),
+@sessionDate as datetime,
+@laps as int,
+@resultMsg as nvarchar(50) output
+as 
+    if(@sessionDate is null or datediff(day,'2017-09-01',@sessionDate)<0)
+		begin
+			set @resultMsg = 'Session date is null or Invalid(Must after Sep 1st 2017)'
+			return -1
+		end
+	if not exists (select * from Riders where Riders.RiderID = @riderId)
+		begin
+			set @resultMsg = 'RiderId :  does not exist or Null'
+			return -1
+		end
+	if not exists (select * from Bikes where Bikes.BikeID = @bikeId)
+		begin
+			set @resultMsg = 'Bike Id : ' + @bikeId + ' does not exist or Null'
+			return -1
+		end
+    declare @originalLaps int
+	if not exists 
+	(select Sessions.Laps from Sessions where RiderID=@riderId and BikeID=@bikeId and SessionDate=@sessionDate )
+	    begin
+		   set @resultMsg='Session not found'
+		   return -1
+		end 
+    
+	select @originalLaps=Sessions.Laps from Sessions where RiderID=@riderId and BikeID=@bikeId and SessionDate=@sessionDate 
+	if(@laps<@originalLaps)
+	  begin
+	    set @resultMsg = 'laps provided need to be greater than the exsiting laps'
+		return -1
+	  end
+	else 
+	  begin
+		  update Sessions
+		  set Laps=@laps
+		  where 
+		   RiderID=@riderId and BikeID=@bikeId and SessionDate=@sessionDate 
+		  set @resultMsg='Session Updated Successfully'
+	  end
+go 
+
+
+----------------------------test UpdateSession--------------------------
+---------good one 
+declare @resultMsg as varchar(50)
+declare @riderID as int =10
+declare @sessionDate datetime ='2018-04-07'
+declare @bikeId varchar(10)='018H-A'
+declare @laps int=10
+
+execute UpdateSession @riderID,@bikeId,@sessionDate,@laps,@resultMsg output 
+
+select 
+@resultMsg as 'UpdateSession Success'
+select 
+*
+from 
+Sessions
+
+go 
+
+------laps invalid---
+declare @resultMsg as varchar(50)
+declare @riderID as int =10
+declare @sessionDate datetime ='2018-04-07'
+declare @bikeId varchar(10)='018H-A'
+declare @laps int=8
+
+execute UpdateSession @riderID,@bikeId,@sessionDate,@laps,@resultMsg output 
+
+select 
+@resultMsg as 'UpdateSession LapsInvalid'
+select 
+*
+from 
+Sessions
+
+go 
+
+
+--------------------------------Remove Class--------------------------------
 
 
