@@ -589,5 +589,123 @@ go
 
 
 --------------------------------Remove Class--------------------------------
+if exists
+(
+	select *
+	from sysobjects
+	where name = 'RemoveClass'
+)
+drop procedure RemoveClass
+go
+
+create procedure RemoveClass
+@classID as varchar(10),
+@resultMsg as varchar(50) output 
+as 
+  if not exists (select * from Class where ClassID = @classID)
+		begin
+			set @resultMsg = 'classID not exsits or Null'
+			return -1
+		end
+
+-----cascading to sessions------
+  if exists 
+  (
+    select *
+	from 
+	 Class inner join Riders 
+	 on class.ClassID=Riders.ClassID
+	 inner join Sessions
+	 on Riders.RiderID=Sessions.RiderID
+	 where class.ClassID=@classID
+  )
+	  begin 
+--delte sessions
+	      delete Sessions
+		  from
+		     Class inner join Riders 
+			 on class.ClassID=Riders.ClassID
+			 inner join Sessions
+			 on Riders.RiderID=Sessions.RiderID
+		  where class.ClassID=@classID
+--delete Riders
+		  delete Riders
+		  from
+		     Class inner join Riders 
+			 on class.ClassID=Riders.ClassID
+		   where class.ClassID=@classID
+	
+	   end 
+------------cascading to Riders-----
+  if exists 
+  (
+     select *
+	 from 
+	 Class inner join Riders 
+	 on class.ClassID=Riders.ClassID
+	 where class.ClassID=@classID
+  )
+	  begin 
+	      delete Riders
+		  from
+		     Class inner join Riders 
+			 on class.ClassID=Riders.ClassID
+		  where class.ClassID=@classID
+				
+	  end 
+----------finally delete Class---------
+delete Class
+ where Class.ClassID=@classID
+ set @resultMsg='All class entries are succesfully deleted'
+ return 0
+go 
 
 
+-------------------------Testing Remove Class-------------
+-----create rider and session for testing 
+
+declare @resultMsg as varchar(50)
+declare @newRiderID as int 
+declare @name as varchar(50)='TestRemoveClass1'
+declare @classID as varchar(10)='moto_2'
+exec AddRider @name,@classID,@resultMsg output,@newRiderID output  
+go
+declare @resultMsg as varchar(50)
+declare @newRiderID as int 
+declare @name as varchar(50)='TestRemoveClass2'
+declare @classID as varchar(10)='moto_2'
+exec AddRider @name,@classID,@resultMsg output,@newRiderID output  
+go
+
+---add seesions
+declare @resultMsg as varchar(50)
+declare @riderID as int =13
+declare @sessionDate datetime ='2018-04-07'
+declare @bikeId varchar(10)='001H-A'
+
+execute AddSession @riderID,@bikeId,@sessionDate,@resultMsg output 
+
+
+select *
+	 from 
+	 Class as c left outer join Riders as r 
+	 on c.ClassID=r.ClassID
+	 left outer join Sessions as s 
+	 on r.RiderID=s.RiderID
+go
+declare @resultMsg as varchar(50)
+execute RemoveClass 'moto_2',@resultMsg output 
+
+select 
+@resultMsg as 'TestRemoveClass'
+
+select *
+	 from 
+	 Class as c left outer join Riders as r 
+	 on c.ClassID=r.ClassID
+	 left outer join Sessions as s 
+	 on r.RiderID=s.RiderID
+
+go 
+
+----------------------------------------ClassInfo-----------------------------------
