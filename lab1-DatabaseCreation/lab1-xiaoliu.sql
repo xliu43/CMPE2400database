@@ -129,7 +129,8 @@ go
 /*
 ('moto_3', 'Default Chassis, custom 125cc engine'),
 ('moto_2', 'Common 600cc engine and electronics, Custom Chassis'),
-('motogp', '1000cc Full Factory Spec, common electronics')
+('motogp', '1000cc Full Factory Spec, common electronics')
+
 */
 
 
@@ -236,6 +237,12 @@ create procedure AddRider
 @resultMsg as nvarchar(50) output,
 @newRiderID as int output 
 as
+	if(@riderName is null)
+	 begin 
+	     set @resultMsg='riderName is null!'
+		 return -1
+	 end 
+	
 	if(LEN(@riderName) <=4)
 		begin
 			set @resultMsg = 'Rider must have a name more than 4 characters!'
@@ -250,7 +257,7 @@ as
 	
 	if(@@ROWCOUNT = 0)
 	begin
-		set @resultMsg = 'Supplied class id does not exist or Null'
+		set @resultMsg = 'Supplied class id does not exist '
 		return -1
 	end
 
@@ -284,7 +291,7 @@ declare @classID as varchar(10)='not exsit'
 exec AddRider @name,@classID,@resultMsg output,@newRiderID output  
 
 select 
-@resultMsg as 'ExcutMessage',
+@resultMsg as 'AddRiderDemo',
 @newRiderID as 'NewRiderID'
 go 
 
@@ -296,7 +303,7 @@ declare @classID as varchar(10)='moto_2'
 exec AddRider @name,@classID,@resultMsg output,@newRiderID output  
 
 select 
-@resultMsg as 'ExcutMessage',
+@resultMsg as 'AddRiderDemo',
 @newRiderID as 'NewRiderID'
 go 
 
@@ -308,7 +315,7 @@ declare @classID as varchar(10)='moto_2'
 exec AddRider @name,@classID,@resultMsg output,@newRiderID output  
 
 select 
-@resultMsg as 'ExcutMessage',
+@resultMsg as 'AddRiderDemo',
 @newRiderID as 'NewRiderID'
 go 
 
@@ -320,7 +327,7 @@ declare @classID as varchar(10)='moto_2'
 exec AddRider @name,@classID,@resultMsg output,@newRiderID output  
 
 select 
-@resultMsg as 'ExcutMessage',
+@resultMsg as 'AddRiderDemo',
 @newRiderID as 'NewRiderID'
 go 
 
@@ -331,7 +338,7 @@ declare @classID as varchar(10)='moto_3'
 exec AddRider @name,@classID,@resultMsg output,@newRiderID output  
 
 select 
-@resultMsg as 'ExcutMessage',
+@resultMsg as 'AddRiderDemo',
 @newRiderID as 'NewRiderID'
 go 
 
@@ -351,7 +358,11 @@ create procedure RemoveRider
 @boolForce as bit =0,
 @resultMsg as varchar(50) output
 as
-
+if(@riderID is null)
+	 begin 
+	     set @resultMsg='riderID is null!'
+		 return -1
+	 end 
 select 
 RiderID as 'RidersID'
 into #RidersTemp
@@ -362,7 +373,7 @@ RiderID=@riderID
 
 if(@@ROWCOUNT=0)
  begin
-    set @resultMsg='RidersID not exsits or null'
+    set @resultMsg='RidersID not exsits'
 	return -1
  end
  ----check the rider has sessions 
@@ -406,7 +417,7 @@ declare @force as bit=0
 exec RemoveRider @riderID,@force,@resultMsg output
 
 select 
-@resultMsg as 'ExcutMessage'
+@resultMsg as 'RemoveRidersDemo'
 go 
 
 
@@ -426,20 +437,37 @@ create procedure AddSession
 @sessionDate as datetime,
 @resultMsg as nvarchar(50) output
 as
+
+if(@riderID is null)
+	 begin 
+	     set @resultMsg='riderID is null!'
+		 return -1
+	 end
+if(@bikeId is null)
+	 begin 
+	     set @resultMsg='bikeId is null!'
+		 return -1
+	 end 
+if(@sessionDate is null)
+	 begin 
+	     set @resultMsg='sessionDate is null!'
+		 return -1
+	 end 
+ 
 	
-	if(@sessionDate is null or datediff(day,'2017-09-01',@sessionDate)<0)
+	if(datediff(day,'2017-09-01',@sessionDate)<0)
 		begin
-			set @resultMsg = 'Session date is null or Invalid(Must after Sep 1st 2017)'
+			set @resultMsg = 'Session date Must after Sep 1st 2017)'
 			return -1
 		end
 	if not exists (select * from Riders where Riders.RiderID = @riderId)
 		begin
-			set @resultMsg = 'RiderId :  does not exist or Null'
+			set @resultMsg = 'RiderId :  does not exist'
 			return -1
 		end
 	if not exists (select * from Bikes where Bikes.BikeID = @bikeId)
 		begin
-			set @resultMsg = 'Bike Id : ' + @bikeId + ' does not exist or Null'
+			set @resultMsg = 'Bike Id : ' + @bikeId + ' does not exist'
 			return -1
 		end
 	if exists (select * from Sessions where Sessions.BikeID = @bikeId)
@@ -467,7 +495,7 @@ declare @bikeId varchar(10)='018H-A'
 execute AddSession @riderID,@bikeId,@sessionDate,@resultMsg output 
 
 select 
-@resultMsg as 'ExcutMessage'
+@resultMsg as 'AddSessionDemo-sucess'
 select 
 *
 from 
@@ -484,7 +512,7 @@ declare @bikeId varchar(10)='018H-A'
 execute AddSession @riderID,@bikeId,@sessionDate,@resultMsg output 
 
 select 
-@resultMsg as 'ExcutMessage'
+@resultMsg as 'AddSessionDemo-Bike Assigned'
 select 
 *
 from 
@@ -510,19 +538,36 @@ create procedure UpdateSession
 @laps as int,
 @resultMsg as nvarchar(50) output
 as 
-    if(@sessionDate is null or datediff(day,'2017-09-01',@sessionDate)<0)
+
+if(@riderID is null)
+	 begin 
+	     set @resultMsg='riderID is null!'
+		 return -1
+	 end
+if(@bikeId is null)
+	 begin 
+	     set @resultMsg='bikeId is null!'
+		 return -1
+	 end 
+if(@sessionDate is null)
+	 begin 
+	     set @resultMsg='sessionDate is null!'
+		 return -1
+	 end 
+
+    if( datediff(day,'2017-09-01',@sessionDate)<0)
 		begin
-			set @resultMsg = 'Session date is null or Invalid(Must after Sep 1st 2017)'
+			set @resultMsg = 'Session date is Invalid(Must after Sep 1st 2017)'
 			return -1
 		end
 	if not exists (select * from Riders where Riders.RiderID = @riderId)
 		begin
-			set @resultMsg = 'RiderId :  does not exist or Null'
+			set @resultMsg = 'RiderId :  does not exist'
 			return -1
 		end
 	if not exists (select * from Bikes where Bikes.BikeID = @bikeId)
 		begin
-			set @resultMsg = 'Bike Id : ' + @bikeId + ' does not exist or Null'
+			set @resultMsg = 'Bike Id : ' + @bikeId + ' does not exist'
 			return -1
 		end
     declare @originalLaps int
@@ -602,9 +647,15 @@ create procedure RemoveClass
 @classID as varchar(10),
 @resultMsg as varchar(50) output 
 as 
+
+if(@classID is null)
+	 begin 
+	     set @resultMsg='classID is null!'
+		 return -1
+	 end
   if not exists (select * from Class where ClassID = @classID)
 		begin
-			set @resultMsg = 'classID not exsits or Null'
+			set @resultMsg = 'classID not exsits'
 			return -1
 		end
 
@@ -666,13 +717,13 @@ go
 
 declare @resultMsg as varchar(50)
 declare @newRiderID as int 
-declare @name as varchar(50)='TestRemoveClass1'
+declare @name as varchar(50)='Name1'
 declare @classID as varchar(10)='moto_2'
 exec AddRider @name,@classID,@resultMsg output,@newRiderID output  
 go
 declare @resultMsg as varchar(50)
 declare @newRiderID as int 
-declare @name as varchar(50)='TestRemoveClass2'
+declare @name as varchar(50)='Name2'
 declare @classID as varchar(10)='moto_2'
 exec AddRider @name,@classID,@resultMsg output,@newRiderID output  
 go
@@ -709,3 +760,65 @@ select *
 go 
 
 ----------------------------------------ClassInfo-----------------------------------
+if exists
+(
+	select *
+	from sysobjects
+	where name = 'ClassInfo'
+)
+drop procedure ClassInfo
+go
+
+create procedure ClassInfo
+@classID as varchar(10),
+@riderID as int,
+@resultMsg as varchar(50) output 
+as
+    if(@classID is null)
+	 begin 
+	     set @resultMsg='classID is null!'
+		 return -1
+	 end
+
+	 if not exists (select * from Class where ClassID = @classID)
+		begin
+			set @resultMsg = 'classID not exsits'
+			return -1
+		end 
+
+	if(@riderID is null)
+	  begin 
+	    select 
+		 c.ClassID,
+		 c.ClassDescription,
+		 r.RiderID,
+		 r.Name,
+		 s.BikeID,
+		 s.SessionDate,
+		 s.Laps
+		 from 
+		 Class as c left outer join Riders as r 
+		 on c.ClassID=r.ClassID
+		 left outer join Sessions as s 
+		 on r.RiderID=s.RiderID
+	  end 
+	  else 
+	       select 
+		 c.ClassID,
+		 c.ClassDescription,
+		 r.RiderID,
+		 r.Name,
+		 s.BikeID,
+		 s.SessionDate,
+		 s.Laps
+		 from 
+		 Class as c left outer join Riders as r 
+		 on c.ClassID=r.ClassID
+		 left outer join Sessions as s 
+		 on r.RiderID=s.RiderID
+		 where r.RiderID=@riderID	 
+go 
+
+
+-------Test ClassInfo---------------------
+  
