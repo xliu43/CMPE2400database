@@ -771,7 +771,7 @@ go
 
 create procedure ClassInfo
 @classID as varchar(10),
-@riderID as int,
+@riderID as int=null,
 @resultMsg as varchar(50) output 
 as
     if(@classID is null)
@@ -795,12 +795,18 @@ as
 		 r.Name,
 		 s.BikeID,
 		 s.SessionDate,
-		 s.Laps
+		 s.Laps,
+		 b.BikeID,
+		 b.StableDate
 		 from 
 		 Class as c left outer join Riders as r 
 		 on c.ClassID=r.ClassID
 		 left outer join Sessions as s 
 		 on r.RiderID=s.RiderID
+		 left outer join Bikes as b
+		 on b.BikeID=s.BikeID
+		 where c.ClassID=@classID
+		 set @resultMsg='ClassInfo Success'
 	  end 
 	  else 
 	       select 
@@ -816,9 +822,165 @@ as
 		 on c.ClassID=r.ClassID
 		 left outer join Sessions as s 
 		 on r.RiderID=s.RiderID
-		 where r.RiderID=@riderID	 
+		 left outer join Bikes as b
+		 on b.BikeID=s.BikeID
+		 where r.RiderID=@riderID and c.ClassID=@classID 
+		 set @resultMsg='ClassInfo '+@classID+' '+cast(@riderID as varchar)
 go 
 
 
 -------Test ClassInfo---------------------
-  
+
+--preprae data 
+declare @resultMsg as varchar(50)
+declare @newRiderID as int 
+declare @name as varchar(50)='Name1'
+declare @classID as varchar(10)='moto_3'
+exec AddRider @name,@classID,@resultMsg output,@newRiderID output  
+go
+declare @resultMsg as varchar(50)
+declare @newRiderID as int 
+declare @name as varchar(50)='Name2'
+declare @classID as varchar(10)='moto_3'
+exec AddRider @name,@classID,@resultMsg output,@newRiderID output  
+go
+
+---add seesions
+declare @resultMsg as varchar(50)
+declare @riderID as int =12
+declare @sessionDate datetime ='2018-04-07'
+declare @bikeId varchar(10)='001H-A'
+
+execute AddSession @riderID,@bikeId,@sessionDate,@resultMsg output 
+
+go
+
+declare @resultMsg as varchar(50)
+execute ClassInfo 'moto_3', null, @resultMsg output 
+go 
+
+declare @resultMsg as varchar(50)
+execute ClassInfo 'moto_3', 12, @resultMsg output 
+go 
+
+
+----------------------------Class Summary ------------------------------
+if exists
+(
+	select *
+	from sysobjects
+	where name = 'ClassSummary'
+)
+drop procedure ClassSummary
+go
+
+create procedure ClassSummary 
+@classID as varchar(10)=null,
+@riderID as int=null
+--@resultMsg as varchar(50) output 
+as
+ if( @classID is null and @riderID is null)
+  begin 
+      select 
+	     c.ClassID,
+		 r.RiderID,
+         count(s.SessionDate) as '# of sessions',
+		 min(s.Laps) as 'Min laps',
+		 max(s.laps) as 'max laps'
+		 from 
+		 Class as c left outer join Riders as r 
+		 on c.ClassID=r.ClassID
+		 left outer join Sessions as s 
+		 on r.RiderID=s.RiderID
+		 --left outer join Bikes as b
+		 --on b.BikeID=s.BikeID
+		 group by 
+		 c.ClassID,r.RiderID
+		 
+	
+	 
+  end 
+
+  if( @classID is not null and @riderID is not null)
+  begin 
+      select 
+	     c.ClassID,
+		 r.RiderID,
+         count(s.SessionDate) as '# of sessions',
+		 min(s.Laps) as 'Min laps',
+		 max(s.laps) as 'max laps'
+		 from 
+		 Class as c left outer join Riders as r 
+		 on c.ClassID=r.ClassID
+		 left outer join Sessions as s 
+		 on r.RiderID=s.RiderID
+		 --left outer join Bikes as b
+		 --on b.BikeID=s.BikeID
+		 where 
+		 c.ClassID=@classID and r.RiderID=r.ClassID
+		 group by 
+		 c.ClassID,r.RiderID
+
+		 
+		 
+	 
+  end 
+
+if(@classID is null and @riderID is not null )
+ begin
+        select 
+	     c.ClassID,
+		 r.RiderID,
+         count(s.SessionDate) as '# of sessions',
+		 min(s.Laps) as 'Min laps',
+		 max(s.laps) as 'max laps'
+		 from 
+		 Class as c left outer join Riders as r 
+		 on c.ClassID=r.ClassID
+		 left outer join Sessions as s 
+		 on r.RiderID=s.RiderID
+		 --left outer join Bikes as b
+		 --on b.BikeID=s.BikeID
+		 where 
+		 r.RiderID=@riderID
+		 group by 
+		 c.ClassID,r.RiderID
+
+      
+ end 
+
+ if(@classID is not null and @riderID is null )
+ begin
+        select 
+	     c.ClassID,
+		 r.RiderID,
+         count(s.SessionDate) as '# of sessions',
+		 min(s.Laps) as 'Min laps',
+		 max(s.laps) as 'max laps'
+		 from 
+		 Class as c left outer join Riders as r 
+		 on c.ClassID=r.ClassID
+		 left outer join Sessions as s 
+		 on r.RiderID=s.RiderID
+		 --left outer join Bikes as b
+		 --on b.BikeID=s.BikeID
+		 where 
+		 c.ClassID=@classID 
+		 group by 
+		 c.ClassID,r.RiderID
+
+      
+ end 
+
+go 
+
+------testing classSummary ---------------------
+execute UpdateSession 12,'001H-A','2018-04-07',10,''
+execute AddSession 12,'002H-P','2018-09-01',''
+execute UpdateSession 12,'002H-P','2018-09-01',20, ''
+
+execute ClassSummary null,null
+execute ClassSummary null,15
+
+execute ClassSummary moto_3,null
+go 
